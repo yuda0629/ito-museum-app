@@ -7,4 +7,4 @@ R言語(Shiny)で作成した遺跡可視化アプリです。
 - 時代・種類フィルタ
 
 ## 技術
-- R / Shiny / leaflet
+- R / Shiny / leaflet（OSSの地図ライブラリ）
