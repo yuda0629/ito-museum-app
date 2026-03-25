@@ -7,7 +7,7 @@ library(htmltools)
 # ===== CSV読み込み（同じフォルダに置く）=====
 # 必須カラム: name, lat, lng, type, period, desc, 
 
-data <- read_csv("~/Downloads/ito-museum-app/ito_sites_clean.csv", show_col_types = FALSE)　#DL時はPassを変更すること
+data <- read_csv("~/Downloads/ito-museum-app/ito_sites_exhibition_fixed.csv", show_col_types = FALSE)　#DL時はPassを変更すること
 
 # ===== UI =====
 ui <- fluidPage(
