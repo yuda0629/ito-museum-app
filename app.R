@@ -4,9 +4,7 @@ library(dplyr)
 library(readr)
 library(htmltools)
 
-# ===== CSV読み込み（同じフォルダに置く）=====
-# 必須カラム: name, lat, lng, type, period, desc, 
-
+# ===== CSV読み込み =====
 data <- read_csv("~/Downloads/ito-museum-app/ito_sites_exhibition_fixed.csv", show_col_types = FALSE)
 
 # ===== UI =====
@@ -36,12 +34,9 @@ ui <- fluidPage(
   )
 )
 
-
-
 # ===== Server =====
 server <- function(input, output, session) {
   
-  # フィルタ
   filteredData <- reactive({
     df <- data
     
@@ -56,17 +51,14 @@ server <- function(input, output, session) {
     df
   })
   
-  # 初期地図
   output$map <- renderLeaflet({
     leaflet() %>%
       addTiles() %>%
       setView(lng = 130.20, lat = 33.57, zoom = 11)
   })
   
-  # マーカー更新
   observe({
     df <- filteredData()
-    
     if (nrow(df) == 0) return()
     
     leafletProxy("map", data = df) %>%
@@ -86,49 +78,29 @@ server <- function(input, output, session) {
           TRUE ~ "orange"
         ),
         fillOpacity = 0.9,
-        popup = ~paste0("<b>", name, "</b><br>クリックで詳細表示")
-      ) %>%
-      
-      addLegend("bottomright",
-                colors = c("red","blue","green","purple","orange"),
-                labels = c("王墓","港湾","工房","祭祀","宅地"),
-                title = "遺跡タイプ"
+        popup = ~paste0("<b>", name, "</b>")
       )
   })
   
-  # ===== クリックでモーダル表示（画像拡大）=====
   observeEvent(input$map_marker_click, {
     click_id <- input$map_marker_click$id
-    
     req(click_id)
+    
     df <- filteredData()
     site <- df %>% filter(name == click_id)
-    
     if (nrow(site) == 0) return()
     
-    showModal(
-      modalDialog(
-        title = site$name,
-        size = "l",
-        easyClose = TRUE,
-        footer = NULL,
-        
-        #tags$img(
-         #src = site$image_url,
-          #style = "width:100%;border-radius:8px;cursor:zoom-in;"
-        #),
-        
-        tags$hr(),
-        HTML(paste0(
-          "<b>種類：</b>", site$type, "<br>",
-          "<b>時代：</b>", site$period, "<br><br>",
-          site$desc
-        ))
-      )
-    )
+    showModal(modalDialog(
+      title = site$name,
+      HTML(paste0(
+        "<b>種類：</b>", site$type, "<br>",
+        "<b>時代：</b>", site$period, "<br><br>",
+        site$desc
+      )),
+      easyClose = TRUE
+    ))
   })
   
-  # 解説表示（クリックでも反映）
   output$site_info <- renderUI({
     click <- input$map_marker_click
     
@@ -149,10 +121,8 @@ server <- function(input, output, session) {
     ))
   })
   
-  # 分析表示
   output$summary <- renderUI({
     df <- filteredData()
-    
     if (nrow(df) == 0) return(NULL)
     
     counts <- df %>% count(type)
