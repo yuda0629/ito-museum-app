@@ -11,6 +11,15 @@ library(readr)
 # ===== データ読み込み =====
 data <- read_csv("ito_sites_master.csv", show_col_types = FALSE)
 
+# ===== 緯度経度の表示用（WGS84 / 度） =====
+fmt_deg <- function(x) {
+  x <- suppressWarnings(as.numeric(x))
+  if (length(x) == 0 || is.na(x[[1]])) {
+    return("—")
+  }
+  sprintf("%.5f", x[[1]])
+}
+
 # ===== 遺跡種別ごとの配色（マスタに登場する全 type に対応） =====
 type_levels <- sort(unique(as.character(data$type)))
 n_types <- length(type_levels)
@@ -117,7 +126,11 @@ server <- function(input, output, session) {
           fillColor = ~site_type_pal(type),
           fillOpacity = 0.88,
           layerId = ~name,
-          popup = ~paste0("<b>", name, "</b><br>種別：", type),
+          popup = ~paste0(
+            "<b>", name, "</b><br>",
+            "種別：", type, "<br>",
+            "緯度：", fmt_deg(lat), "　経度：", fmt_deg(lng)
+          ),
           popupOptions = popupOptions(maxWidth = 240)
         )
     }
@@ -139,10 +152,18 @@ server <- function(input, output, session) {
   output$detail <- renderUI({
     req(selected_site())
 
-    site <- data %>% filter(name == selected_site())
+    site <- data %>% filter(name == selected_site()) %>% slice(1)
+    lat_s <- fmt_deg(site$lat)
+    lng_s <- fmt_deg(site$lng)
+    osm <- paste0(
+      "https://www.openstreetmap.org/?mlat=", site$lat, "&mlon=", site$lng, "#map=15/"
+    )
 
     HTML(paste0(
       "<h4>", site$name, "</h4>",
+      "<p><b>緯度（WGS84）：</b>", lat_s, "</p>",
+      "<p><b>経度（WGS84）：</b>", lng_s, "</p>",
+      "<p><small><a href=\"", osm, "\" target=\"_blank\" rel=\"noopener\">地図で開く（OpenStreetMap）</a></small></p>",
       "<p><b>時代：</b>", site$period, "</p>",
       "<p><b>種別：</b>", site$type, "</p>",
       "<p>", site$desc, "</p>"
@@ -150,13 +171,13 @@ server <- function(input, output, session) {
   })
 
   output$compare <- renderTable({
-    a <- data %>% filter(name == input$siteA)
-    b <- data %>% filter(name == input$siteB)
+    a <- data %>% filter(name == input$siteA) %>% slice(1)
+    b <- data %>% filter(name == input$siteB) %>% slice(1)
 
     data.frame(
-      `項目` = c("時代", "種別", "説明"),
-      A = c(a$period, a$type, a$desc),
-      B = c(b$period, b$type, b$desc)
+      `項目` = c("緯度（WGS84）", "経度（WGS84）", "時代", "種別", "説明"),
+      A = c(fmt_deg(a$lat), fmt_deg(a$lng), a$period, a$type, a$desc),
+      B = c(fmt_deg(b$lat), fmt_deg(b$lng), b$period, b$type, b$desc)
     )
   })
 
