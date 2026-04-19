@@ -1,5 +1,5 @@
 # =============================
-# 伊都国デジタル展示アプリ（採用確定レベル完全版）
+# 伊都国デジタル展示アプリ（完全版）
 # コンセプト：伊都国における権力構造の可視化
 # =============================
 
@@ -10,6 +10,14 @@ library(readr)
 
 # ===== データ読み込み =====
 data <- read_csv("ito_sites_master.csv", show_col_types = FALSE)
+
+# ===== 展示解説（既定文・Unicode コードポイント明示） =====
+text_explanation_default <- intToUtf8(as.integer(strtoi(c(
+  "907A", "8DE1", "306E", "5206", "5E03", "304B", "3089", "3001",
+  "4F0A", "90FD", "56FD", "306B", "304A", "3051", "308B",
+  "968E", "5C64", "7684", "793E", "4F1A", "69CB", "9020",
+  "304C", "8AAD", "307F", "53D6", "308C", "308B", "3002"
+), 16L)))
 
 # ===== 緯度経度の表示用（WGS84 / 度） =====
 fmt_deg <- function(x) {
@@ -186,15 +194,15 @@ server <- function(input, output, session) {
       return("弥生時代後期には政治的統合が進み、伊都国の重要性が高まったと考えられる。")
     }
 
-    if (all(input$type == "墳墓")) {
+    if (length(input$type) > 0 && all(input$type == "墳墓")) {
       return("墳墓は権力の象徴であり、首長層の存在を示す重要な指標である。")
     }
 
-    if (all(input$type == "集落")) {
+    if (length(input$type) > 0 && all(input$type == "集落")) {
       return("集落は社会基盤を示し、人口と生産活動の広がりを反映している。")
     }
 
-    "遺跡の分布から、伊都国における階層的社会構造が読み取れる。"
+    text_explanation_default
   })
 }
 
