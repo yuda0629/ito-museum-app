@@ -11,14 +11,6 @@ library(readr)
 # ===== データ読み込み =====
 data <- read_csv("ito_sites_master.csv", show_col_types = FALSE)
 
-# ===== 展示解説（既定文・Unicode コードポイント明示） =====
-text_explanation_default <- intToUtf8(as.integer(strtoi(c(
-  "907A", "8DE1", "306E", "5206", "5E03", "304B", "3089", "3001",
-  "4F0A", "90FD", "56FD", "306B", "304A", "3051", "308B",
-  "968E", "5C64", "7684", "793E", "4F1A", "69CB", "9020",
-  "304C", "8AAD", "307F", "53D6", "308C", "308B", "3002"
-), 16L)))
-
 # ===== 緯度経度の表示用（WGS84 / 度） =====
 fmt_deg <- function(x) {
   x <- suppressWarnings(as.numeric(x))
@@ -60,11 +52,7 @@ ui <- fluidPage(
           )
         }),
         selected = type_levels
-      ),
-
-      hr(),
-      h4("展示解説"),
-      textOutput("explanation")
+      )
     ),
 
     mainPanel(
@@ -187,22 +175,6 @@ server <- function(input, output, session) {
       A = c(fmt_deg(a$lat), fmt_deg(a$lng), a$period, a$type, a$desc),
       B = c(fmt_deg(b$lat), fmt_deg(b$lng), b$period, b$type, b$desc)
     )
-  })
-
-  output$explanation <- renderText({
-    if (input$era != "すべて") {
-      return("弥生時代後期には政治的統合が進み、伊都国の重要性が高まったと考えられる。")
-    }
-
-    if (length(input$type) > 0 && all(input$type == "墳墓")) {
-      return("墳墓は権力の象徴であり、首長層の存在を示す重要な指標である。")
-    }
-
-    if (length(input$type) > 0 && all(input$type == "集落")) {
-      return("集落は社会基盤を示し、人口と生産活動の広がりを反映している。")
-    }
-
-    text_explanation_default
   })
 }
 
