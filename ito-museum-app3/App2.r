@@ -30,10 +30,19 @@ site_type_pal <- colorFactor(palette = type_palette_vec, domain = type_levels)
 
 # ===== UI =====
 ui <- fluidPage(
+  tags$head(
+    tags$style(HTML("
+      body { background-color: #ffffff !important; }
+      .container-fluid { background-color: #ffffff; }
+      .tab-content { background-color: #ffffff; padding-top: 0.5rem; }
+      .leaflet-container { background-color: #d8ecf8 !important; }
+    "))
+  ),
   titlePanel("伊都国デジタル展示 - 権力構造の可視化"),
 
   sidebarLayout(
     sidebarPanel(
+      style = "background-color: #ffffff; border: 1px solid #e8e8e8; border-radius: 6px;",
       h3("展示ナビゲーション"),
 
       selectInput("era", "時代選択",
@@ -56,33 +65,44 @@ ui <- fluidPage(
     ),
 
     mainPanel(
+      style = "background-color: #ffffff;",
       tabsetPanel(
-        tabPanel("① 伊都国とは",
-                 h3("伊都国の概要"),
-                 p("伊都国は弥生時代において外交・政治の中心的役割を担った地域である。"),
-                 p("本展示では、その権力構造を遺跡データから読み解く。")
+        id = "view_tabs",
+        tabPanel(
+          value = "tab_intro",
+          title = "① 伊都国とは",
+          h3("伊都国の概要"),
+          p("伊都国は弥生時代において外交・政治の中心的役割を担った地域である。"),
+          p("本展示では、その権力構造を遺跡データから読み解く。")
         ),
 
-        tabPanel("② 分布を見る",
-                 fluidRow(
-                   column(8, leafletOutput("map", height = 600)),
-                   column(4,
-                          h3("遺跡詳細"),
-                          htmlOutput("detail")
-                   )
-                 )
+        tabPanel(
+          value = "tab_map",
+          title = "② 分布を見る",
+          fluidRow(
+            column(8, leafletOutput("map", height = 600)),
+            column(
+              4,
+              h3("遺跡詳細"),
+              htmlOutput("detail")
+            )
+          )
         ),
 
-        tabPanel("③ 比較する",
-                 selectInput("siteA", "比較対象A", choices = data$name),
-                 selectInput("siteB", "比較対象B", choices = data$name),
-                 tableOutput("compare")
+        tabPanel(
+          value = "tab_compare",
+          title = "③ 比較する",
+          selectInput("siteA", "比較対象A", choices = data$name),
+          selectInput("siteB", "比較対象B", choices = data$name),
+          tableOutput("compare")
         ),
 
-        tabPanel("④ 結論",
-                 h3("展示からわかること"),
-                 p("伊都国では首長層を頂点とする階層的社会構造が形成されていたと考えられる。"),
-                 p("大型墳墓による権威の表象と、それを支える集落の分布は、政治的統合の進展を示している。")
+        tabPanel(
+          value = "tab_outro",
+          title = "④ 結論",
+          h3("展示からわかること"),
+          p("伊都国では首長層を頂点とする階層的社会構造が形成されていたと考えられる。"),
+          p("大型墳墓による権威の表象と、それを支える集落の分布は、政治的統合の進展を示している。")
         )
       )
     )
@@ -93,6 +113,13 @@ ui <- fluidPage(
 server <- function(input, output, session) {
 
   selected_site <- reactiveVal(NULL)
+  map_render_tick <- reactiveVal(0L)
+
+  observeEvent(input$view_tabs, {
+    if (identical(input$view_tabs, "tab_map")) {
+      map_render_tick(map_render_tick() + 1L)
+    }
+  }, ignoreNULL = TRUE)
 
   filtered <- reactive({
     df <- data
@@ -101,34 +128,79 @@ server <- function(input, output, session) {
       df <- df %>% filter(period == input$era)
     }
 
-    df <- df %>% filter(type %in% input$type)
+    types <- input$type
+    if (is.null(types) || !length(types)) {
+      types <- type_levels
+    }
+    df <- df %>% filter(type %in% types)
     df
   })
 
   output$map <- renderLeaflet({
+    map_render_tick()
+    req(identical(input$view_tabs, "tab_map"))
+
     df <- filtered()
+    sel <- selected_site()
 
-    m <- leaflet(df) %>% addTiles()
+    if (nrow(df) == 0) {
+      return(
+        leaflet(options = leafletOptions(preferCanvas = TRUE)) %>%
+          addTiles() %>%
+          setView(lng = 130.2, lat = 33.55, zoom = 10) %>%
+          addLegend(
+            "bottomright",
+            pal = site_type_pal,
+            values = type_levels,
+            title = "遺跡種別",
+            opacity = 1
+          )
+      )
+    }
 
-    if (nrow(df) > 0) {
-      m <- m %>%
-        addCircleMarkers(
-          lng = ~lng,
-          lat = ~lat,
-          radius = 8,
-          stroke = TRUE,
-          weight = 2,
-          color = "white",
-          fillColor = ~site_type_pal(type),
-          fillOpacity = 0.88,
-          layerId = ~name,
-          popup = ~paste0(
-            "<b>", name, "</b><br>",
-            "種別：", type, "<br>",
-            "緯度：", fmt_deg(lat), "　経度：", fmt_deg(lng)
-          ),
-          popupOptions = popupOptions(maxWidth = 240)
-        )
+    is_sel <- rep(FALSE, nrow(df))
+    if (!is.null(sel)) {
+      is_sel <- df$name == sel
+    }
+    df <- df %>%
+      mutate(
+        mr = ifelse(is_sel, 16L, 8L),
+        mw = ifelse(is_sel, 4L, 2L),
+        mcol = ifelse(is_sel, "#f5b000", "white")
+      )
+
+    m <- leaflet(df, options = leafletOptions(preferCanvas = TRUE)) %>%
+      addTiles() %>%
+      addCircleMarkers(
+        lng = df$lng,
+        lat = df$lat,
+        radius = df$mr,
+        stroke = TRUE,
+        weight = df$mw,
+        color = df$mcol,
+        fillColor = site_type_pal(df$type),
+        fillOpacity = 0.88,
+        layerId = df$name,
+        popup = paste0(
+          "<b>", df$name, "</b><br>",
+          "種別：", df$type, "<br>",
+          "緯度：", sprintf("%.5f", suppressWarnings(as.numeric(df$lat))),
+          "　経度：",
+          sprintf("%.5f", suppressWarnings(as.numeric(df$lng)))
+        ),
+        popupOptions = popupOptions(maxWidth = 240)
+      )
+
+    lng1 <- min(df$lng, na.rm = TRUE)
+    lng2 <- max(df$lng, na.rm = TRUE)
+    lat1 <- min(df$lat, na.rm = TRUE)
+    lat2 <- max(df$lat, na.rm = TRUE)
+    if (is.finite(lng1) && is.finite(lng2) && is.finite(lat1) && is.finite(lat2)) {
+      if (lng1 == lng2 && lat1 == lat2) {
+        m <- m %>% setView(lng = lng1, lat = lat1, zoom = 13)
+      } else {
+        m <- m %>% fitBounds(lng1, lat1, lng2, lat2)
+      }
     }
 
     m %>%
