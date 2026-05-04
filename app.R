@@ -5,7 +5,10 @@ library(readr)
 library(htmltools)
 
 # ===== CSV読み込み =====
-data <- read_csv("~/Downloads/ito-museum-app/ito_sites_exhibition_fixed.csv", show_col_types = FALSE)
+if (!file.exists("ito_sites_exhibition_fixed.csv")) {
+  stop("CSVファイルが見つかりません: ito_sites_exhibition_fixed.csv")
+}
+data <- read_csv("ito_sites_exhibition_fixed.csv", show_col_types = FALSE)
 
 # ===== UI =====
 ui <- fluidPage(

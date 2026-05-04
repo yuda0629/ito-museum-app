@@ -9,7 +9,11 @@ library(dplyr)
 library(readr)
 
 # ===== データ読み込み =====
+if (!file.exists("ito_sites_master.csv")) {
+  stop("CSVファイルが見つかりません: ito_sites_master.csv")
+}
 data <- read_csv("ito_sites_master.csv", show_col_types = FALSE)
+data$desc <- ifelse(is.na(data$desc) | data$desc == "nan", "", data$desc)
 
 # ===== 緯度経度の表示用（WGS84 / 度） =====
 fmt_deg <- function(x) {
@@ -110,38 +114,38 @@ server <- function(input, output, session) {
   })
 
   output$map <- renderLeaflet({
-    df <- filtered()
-
-    m <- leaflet(df) %>% addTiles()
-
-    if (nrow(df) > 0) {
-      m <- m %>%
-        addCircleMarkers(
-          lng = ~lng,
-          lat = ~lat,
-          radius = 8,
-          stroke = TRUE,
-          weight = 2,
-          color = "white",
-          fillColor = ~site_type_pal(type),
-          fillOpacity = 0.88,
-          layerId = ~name,
-          popup = ~paste0(
-            "<b>", name, "</b><br>",
-            "種別：", type, "<br>",
-            "緯度：", fmt_deg(lat), "　経度：", fmt_deg(lng)
-          ),
-          popupOptions = popupOptions(maxWidth = 240)
-        )
-    }
-
-    m %>%
+    leaflet() %>%
+      addTiles() %>%
+      setView(lng = 130.20, lat = 33.56, zoom = 12) %>%
       addLegend(
         "bottomright",
         pal = site_type_pal,
         values = type_levels,
         title = "遺跡種別",
         opacity = 1
+      )
+  })
+
+  observe({
+    df <- filtered()
+    leafletProxy("map", data = df) %>%
+      clearMarkers() %>%
+      addCircleMarkers(
+        lng = ~lng,
+        lat = ~lat,
+        radius = 8,
+        stroke = TRUE,
+        weight = 2,
+        color = "white",
+        fillColor = ~site_type_pal(type),
+        fillOpacity = 0.88,
+        layerId = ~name,
+        popup = ~paste0(
+          "<b>", name, "</b><br>",
+          "種別：", type, "<br>",
+          "緯度：", fmt_deg(lat), "　経度：", fmt_deg(lng)
+        ),
+        popupOptions = popupOptions(maxWidth = 240)
       )
   })
 
